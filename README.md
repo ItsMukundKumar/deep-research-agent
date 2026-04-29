@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="https://readme-typing-svg.demolab.com?font=Syne&weight=800&size=32&pause=1000&color=6366F1&center=true&vCenter=true&width=600&lines=Deep+Research+Agent+🔬;Multi-Agent+AI+Research+System" alt="Typing SVG" />
-
 <br/>
 
 <p align="center">
