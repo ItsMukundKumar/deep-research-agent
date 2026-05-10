@@ -7,9 +7,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# model setup
-model = ChatGroq(model="llama-3.1-8b-instant", temperature=0)
-
 
 class SimpleToolAgent:
     """Minimal ReAct-style agent: call LLM → execute tools → return final answer."""
@@ -19,13 +16,12 @@ class SimpleToolAgent:
         self.tools = {t.name: t for t in tools}
 
     def invoke(self, input: dict) -> dict:
+        tool_names = "\n".join(f"- {name}" for name in self.tools.keys())
         messages = [
-            SystemMessage(content=(          # ✅ Fixed: was HumanMessage
+            SystemMessage(content=(
                 "You are a research assistant. "
-                "You can ONLY use the following tools:\n"
-                "- web_search\n"
-                "- scrape_url\n"
-                "Never invent tool names."
+                f"You can ONLY use the following tools:\n{tool_names}\n"
+                "Never invent or call any other tool name."
             ))
         ] + input["messages"]
 
@@ -44,7 +40,7 @@ class SimpleToolAgent:
                     result = f"Tool '{tc['name']}' not found."
                 messages.append(ToolMessage(content=str(result), tool_call_id=tc["id"]))
 
-        # ✅ Fixed: force a final answer if loop ended on a tool message
+        # Guarantee a final AIMessage text response
         if not isinstance(messages[-1], AIMessage):
             final = self.llm.invoke(messages)
             messages.append(final)
@@ -52,76 +48,67 @@ class SimpleToolAgent:
         return {"messages": messages}
 
 
-# First Agent
+# ✅ Each agent gets its own fresh LLM instance — no shared bind_tools state
 def build_search_agent():
-    return SimpleToolAgent(llm=model, tools=[web_search])
+    llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0)
+    return SimpleToolAgent(llm=llm, tools=[web_search])
 
 
-# Second Agent
 def build_reader_agent():
-    return SimpleToolAgent(llm=model, tools=[scrape_url])
+    llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0)
+    return SimpleToolAgent(llm=llm, tools=[scrape_url])
 
 
 # Writer Chain
-writer_prompt = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            "you are an expert research writer. write clean, structured and insightful reports.",
-        ),
-        (
-            "human",
-            """Write a detailed research report on the topic below.
+_writer_model = ChatGroq(model="llama-3.1-8b-instant", temperature=0)
 
-        Topic : {topic}
+writer_prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are an expert research writer. Write clean, structured and insightful reports."),
+    ("human", """Write a detailed research report on the topic below.
 
-        Research Gathered:
-        {research}
+Topic: {topic}
 
-        Structure the report as:
-        - Introduction
-        - Key Findings (minimum 3 well-explained points)
-        - Conclusion
-        - Sources (list all urls found in the research)
+Research Gathered:
+{research}
 
-        Be detailed, factual and professional.
-        """,
-        ),
-    ]
-)
+Structure the report as:
+- Introduction
+- Key Findings (minimum 3 well-explained points)
+- Conclusion
+- Sources (list all URLs found in the research)
 
-writer_chain = writer_prompt | model | StrOutputParser()
+Be detailed, factual and professional.
+"""),
+])
+
+writer_chain = writer_prompt | _writer_model | StrOutputParser()
 
 
 # Critic Chain
-critic_prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", "you are a sharp and constructive research critic. Be honest and specific."),
-        (
-            "human",
-            """
-        Review the research report below and evaluate it strictly.
+_critic_model = ChatGroq(model="llama-3.1-8b-instant", temperature=0)
 
-        Report:
-        {report}
+critic_prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a sharp and constructive research critic. Be honest and specific."),
+    ("human", """Review the research report below and evaluate it strictly.
 
-        Respond in this exact format:
+Report:
+{report}
 
-        Score : X/10
+Respond in this exact format:
 
-        Strengths:
-        - ...
-        - ...
+Score : X/10
 
-        Areas to improve:
-        - ...
-        - ...
+Strengths:
+- ...
+- ...
 
-        One line verdict:
-        - ...
-        """,
-        ),
-    ]
-)
+Areas to improve:
+- ...
+- ...
 
-critic_chain = critic_prompt | model | StrOutputParser()
+One line verdict:
+- ...
+"""),
+])
+
+critic_chain = critic_prompt | _critic_model | StrOutputParser()
