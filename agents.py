@@ -19,17 +19,25 @@ class SimpleToolAgent:
         self.tools = {t.name: t for t in tools}
 
     def invoke(self, input: dict) -> dict:
-        messages = input["messages"]
+        messages = [
+    HumanMessage(
+        content=(
+            "You are a research assistant. "
+            "You can ONLY use the following tools:\n"
+            "- web_search\n"
+            "- scrape_url\n"
+            "Never invent tool names."
+        )
+    )
+] + input["messages"]
 
-        for _ in range(5):  # max 5 tool-call rounds
+        for _ in range(5):  
             response = self.llm.invoke(messages)
             messages.append(response)
 
-            # No tool calls → we have the final answer
             if not response.tool_calls:
                 break
 
-            # Execute every tool the model requested
             for tc in response.tool_calls:
                 tool_fn = self.tools.get(tc["name"])
                 if tool_fn:
