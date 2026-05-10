@@ -28,10 +28,10 @@
  Your Topic
      │
      ▼
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐      ┌─────────────┐
 │  🔍 Search  │────▶│  📄 Scrape  │────▶│  ✍️  Write  │────▶│  🧠 Critic  │
-│    Agent    │     │    Agent    │     │    Chain    │     │    Chain    │
-└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
+│    Agent    │      │    Agent    │      │    Chain    │      │    Chain    │
+└─────────────┘      └─────────────┘      └─────────────┘      └─────────────┘
   Finds recent        Scrapes top          Drafts a           Reviews &
   web sources         URLs for             structured         scores the
   on your topic       deep content         report             report
@@ -122,6 +122,7 @@ pip install -r requirements.txt
 
 ```env
 GROQ_API_KEY=your_groq_api_key_here
+TAVILY_API_KEY=your_groq_api_key_here
 ```
 
 > Get your free Groq API key at [console.groq.com](https://console.groq.com)
@@ -171,7 +172,7 @@ This app is deployable on **Streamlit Community Cloud** for free:
 1. Push your repo to GitHub
 2. Go to [share.streamlit.io](https://share.streamlit.io) → **New App**
 3. Select your repo and set main file to `app.py`
-4. Add `GROQ_API_KEY` under **Advanced Settings → Secrets**
+4. Add `GROQ_API_KEY` `TAVILY_API_KEY` under **Advanced Settings → Secrets**
 5. Click **Deploy** ✅
 
 <br/>
