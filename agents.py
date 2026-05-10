@@ -1,7 +1,7 @@
 from langchain_groq.chat_models import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.messages import HumanMessage, ToolMessage, AIMessage
+from langchain_core.messages import HumanMessage, ToolMessage, AIMessage, SystemMessage
 from tools import web_search, scrape_url
 from dotenv import load_dotenv
 
@@ -20,18 +20,16 @@ class SimpleToolAgent:
 
     def invoke(self, input: dict) -> dict:
         messages = [
-    HumanMessage(
-        content=(
-            "You are a research assistant. "
-            "You can ONLY use the following tools:\n"
-            "- web_search\n"
-            "- scrape_url\n"
-            "Never invent tool names."
-        )
-    )
-] + input["messages"]
+            SystemMessage(content=(          # ✅ Fixed: was HumanMessage
+                "You are a research assistant. "
+                "You can ONLY use the following tools:\n"
+                "- web_search\n"
+                "- scrape_url\n"
+                "Never invent tool names."
+            ))
+        ] + input["messages"]
 
-        for _ in range(5):  
+        for _ in range(5):
             response = self.llm.invoke(messages)
             messages.append(response)
 
@@ -45,6 +43,11 @@ class SimpleToolAgent:
                 else:
                     result = f"Tool '{tc['name']}' not found."
                 messages.append(ToolMessage(content=str(result), tool_call_id=tc["id"]))
+
+        # ✅ Fixed: force a final answer if loop ended on a tool message
+        if not isinstance(messages[-1], AIMessage):
+            final = self.llm.invoke(messages)
+            messages.append(final)
 
         return {"messages": messages}
 
@@ -69,18 +72,19 @@ writer_prompt = ChatPromptTemplate.from_messages(
         (
             "human",
             """Write a detailed research report on the topic below.
+
         Topic : {topic}
-        
+
         Research Gathered:
         {research}
-        
+
         Structure the report as:
         - Introduction
         - Key Findings (minimum 3 well-explained points)
         - Conclusion
         - Sources (list all urls found in the research)
-        
-        Be detailed factual and professional.
+
+        Be detailed, factual and professional.
         """,
         ),
     ]
@@ -88,34 +92,35 @@ writer_prompt = ChatPromptTemplate.from_messages(
 
 writer_chain = writer_prompt | model | StrOutputParser()
 
+
 # Critic Chain
 critic_prompt = ChatPromptTemplate.from_messages(
     [
-        ('system', 'you are a sharp and constructive research critic. Be honest and specific.'),
-        ('human', """
+        ("system", "you are a sharp and constructive research critic. Be honest and specific."),
+        (
+            "human",
+            """
         Review the research report below and evaluate it strictly.
-        
+
         Report:
         {report}
-        
+
         Respond in this exact format:
-        
+
         Score : X/10
-        
+
         Strengths:
-        
         - ...
         - ...
-        
+
         Areas to improve:
-        
         - ...
-        - ... 
-        
+        - ...
+
         One line verdict:
         - ...
-        
-        """)
+        """,
+        ),
     ]
 )
 
